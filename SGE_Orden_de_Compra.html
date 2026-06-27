@@ -254,21 +254,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
       <div class="add-row" id="add-row"></div>
     </div>
 
-    <div class="add-bar" id="add-bar">
-      <div class="selection-preview" id="sel-preview">—</div>
-      <div class="qty-row">
-        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-          <span style="font-size:11px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;">Cantidad</span>
-          <div class="qty-ctrl">
-            <button onclick="chgQty(-1)">−</button>
-            <input type="number" id="oc-qty" value="1" min="1" max="99">
-            <button onclick="chgQty(1)">＋</button>
-          </div>
-          <span style="font-size:10px;color:#aaa;">unidades</span>
-        </div>
-        <button class="btn-add" onclick="addToCart()">＋ Agregar al carrito</button>
-      </div>
-    </div>
+    <div id="add-bar"></div>
 
     <div id="cart-section" class="hidden">
       <div class="divider"></div>
@@ -360,6 +346,30 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
   <button class="btn-cta btn-next" onclick="goToStep(2)" id="btn-next-1">
     Ver carrito y continuar →
   </button>
+</div>
+
+<!-- ADD BAR FIJO (aparece al seleccionar potencia) -->
+<div id="add-bar-fixed" style="
+  display:none; position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+  width:100%; max-width:600px; background:white;
+  border-top:2px solid var(--orange);
+  box-shadow:0 -4px 16px rgba(0,0,0,.15); z-index:200; padding:10px 16px;
+">
+  <div style="font-size:12px;font-weight:800;color:var(--navy);margin-bottom:8px;" id="sel-preview">—</div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <span style="font-size:10px;font-weight:800;color:var(--gray);text-transform:uppercase;">Cantidad</span>
+      <div class="qty-ctrl">
+        <button onclick="chgQty(-1)">−</button>
+        <input type="number" id="oc-qty" value="1" min="1" max="99">
+        <button onclick="chgQty(1)">＋</button>
+      </div>
+      <span style="font-size:10px;color:#aaa;">unidades</span>
+    </div>
+    <button class="btn-add" style="flex:1;height:52px;font-size:15px;" onclick="addToCart()">
+      ＋ Agregar al carrito
+    </button>
+  </div>
 </div>
 <div class="bottom-cta hidden" id="bottom-cta-2">
   <button class="btn-cta btn-back" onclick="goToStep(1)">←</button>
@@ -496,10 +506,18 @@ function selectAdd(chip) {
 }
 
 function showAddBar() {
-  const bar = document.getElementById('add-bar');
+  const bar     = document.getElementById('add-bar-fixed');
   const preview = document.getElementById('sel-preview');
+  const cta     = document.getElementById('bottom-cta-1');
   preview.textContent = `${selBrand} ${selModel.name}  •  ${selPower}D${selAdd?' / +'+selAdd+'D':''}`;
   bar.style.display = 'block';
+  cta.style.display = 'none';
+  document.getElementById('oc-qty').value = 1;
+}
+
+function hideAddBar() {
+  document.getElementById('add-bar-fixed').style.display = 'none';
+  document.getElementById('bottom-cta-1').style.display  = 'flex';
 }
 
 // ── CARRITO ───────────────────────────────────────────────────────
@@ -519,11 +537,11 @@ function addToCart() {
                   power:selPower, addition:selAdd||null, qty});
   document.getElementById('oc-qty').value = 1;
   renderCart();
-  // Flash
-  const btn = document.querySelector('.btn-add');
+  // Flash y cerrar
+  const btn = document.querySelector('#add-bar-fixed .btn-add');
   const orig = btn.textContent;
-  btn.textContent='✅ Agregado!'; btn.style.background='#375623';
-  setTimeout(()=>{btn.textContent=orig; btn.style.background='var(--orange)';}, 900);
+  btn.textContent='✅ ¡Agregado!'; btn.style.background='#375623';
+  setTimeout(()=>{ btn.textContent=orig; btn.style.background='var(--orange)'; hideAddBar(); }, 1000);
 }
 
 function renderCart() {
