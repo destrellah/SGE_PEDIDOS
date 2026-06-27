@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>SGE — Pedido de Lentes</title>
+<style>
+:root {
+  --navy:#002060; --blue:#1F4E79; --orange:#C55A11;
+  --green:#25D366; --purple:#7030A0;
+  --gray:#666; --lgray:#f4f6f9; --border:#e0e0e0;
+  --radius:12px; --shadow:0 2px 12px rgba(0,0,0,.1);
+}
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
+       background:var(--lgray); color:#222; min-height:100vh; }
+
+/* ── APP SHELL ── */
+.app { max-width:600px; margin:0 auto; min-height:100vh;
+       background:white; display:flex; flex-direction:column; }
+
+/* ── HEADER ── */
+.app-header {
+  background:var(--navy); color:white; padding:16px 20px;
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+.app-header .brand h1 { font-size:20px; font-weight:800; letter-spacing:1px; }
+.app-header .brand p  { font-size:11px; opacity:.75; margin-top:2px; }
+.cart-icon { position:relative; cursor:pointer; padding:6px; }
+.cart-icon svg { width:28px; height:28px; fill:white; }
+.cart-badge {
+  position:absolute; top:0; right:0; background:#FFC000; color:var(--navy);
+  border-radius:50%; width:18px; height:18px; font-size:11px; font-weight:800;
+  display:flex; align-items:center; justify-content:center; display:none;
+}
+
+/* ── STEPS BAR ── */
+.steps-bar {
+  display:flex; background:#f0f4f8; border-bottom:1px solid var(--border);
+}
+.step-tab {
+  flex:1; padding:10px 4px; text-align:center; font-size:11px; font-weight:bold;
+  color:var(--gray); cursor:pointer; border-bottom:3px solid transparent;
+  transition:all .2s; position:relative;
+}
+.step-tab.active { color:var(--navy); border-bottom-color:var(--navy); background:white; }
+.step-tab.done   { color:var(--green); }
+.step-num { font-size:16px; display:block; margin-bottom:2px; }
+
+/* ── PANELS ── */
+.panel { display:none; flex:1; overflow-y:auto; padding:16px; padding-bottom:100px; }
+.panel.active { display:block; }
+
+/* ── BRAND TILES ── */
+.section-label { font-size:11px; font-weight:800; color:var(--gray);
+                 text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; }
+.brand-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:20px; }
+.brand-tile {
+  border:2px solid var(--border); border-radius:var(--radius); padding:14px 8px;
+  text-align:center; cursor:pointer; transition:all .2s; background:white;
+}
+.brand-tile.active { border-color:var(--navy); background:#EBF3FF; }
+.brand-tile .logo { font-size:22px; margin-bottom:4px; }
+.brand-tile .name { font-size:13px; font-weight:800; color:var(--navy); }
+.brand-tile .desc { font-size:10px; color:var(--gray); margin-top:2px; }
+
+/* ── MODEL CHIPS ── */
+.model-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+.model-chip {
+  padding:8px 16px; border:2px solid var(--border); border-radius:20px;
+  font-size:13px; font-weight:700; cursor:pointer; background:white;
+  color:var(--gray); transition:all .2s;
+}
+.model-chip.active { border-color:var(--blue); background:var(--blue); color:white; }
+
+/* ── POWER GRID ── */
+.power-grid { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:20px;
+              max-height:220px; overflow-y:auto; padding:2px; }
+.pow-btn {
+  padding:7px 10px; border:1.5px solid var(--border); border-radius:8px;
+  font-size:12px; font-weight:600; cursor:pointer; background:white;
+  color:#333; transition:all .15s; min-width:64px; text-align:center;
+}
+.pow-btn.active { background:var(--navy); color:white; border-color:var(--navy); }
+.pow-btn:active { transform:scale(.95); }
+
+/* ── ADDITION CHIPS ── */
+.add-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+.add-chip {
+  padding:7px 14px; border:2px solid #e8c49a; border-radius:20px;
+  font-size:13px; font-weight:700; cursor:pointer; background:white;
+  color:var(--orange); transition:all .2s;
+}
+.add-chip.active { background:var(--orange); color:white; border-color:var(--orange); }
+
+/* ── ADD TO CART BAR ── */
+.add-bar {
+  background:#f8f9fa; border:1.5px solid var(--border); border-radius:var(--radius);
+  padding:14px; margin-bottom:16px; display:none;
+}
+.add-bar .selection-preview {
+  font-size:13px; color:var(--navy); font-weight:700; margin-bottom:12px;
+}
+.add-bar .qty-row { display:flex; align-items:center; gap:10px; }
+.qty-ctrl { display:flex; align-items:center; border:2px solid var(--border);
+            border-radius:8px; overflow:hidden; }
+.qty-ctrl button {
+  width:38px; height:38px; border:none; background:#eee; font-size:20px;
+  font-weight:bold; cursor:pointer; color:var(--navy);
+}
+.qty-ctrl button:active { background:#ddd; }
+.qty-ctrl input {
+  width:48px; text-align:center; border:none; font-size:16px;
+  font-weight:800; color:var(--navy); outline:none; padding:6px 0;
+}
+.btn-add {
+  flex:1; height:42px; background:var(--orange); color:white; border:none;
+  border-radius:8px; font-size:14px; font-weight:800; cursor:pointer;
+  transition:all .2s;
+}
+.btn-add:active { transform:scale(.97); background:#a04800; }
+
+/* ── CARRITO ITEMS ── */
+.cart-empty-msg { text-align:center; padding:40px 20px; color:#bbb; font-size:14px; }
+.cart-item {
+  display:flex; align-items:center; gap:10px; padding:12px 0;
+  border-bottom:1px solid var(--border);
+}
+.cart-item-icon { font-size:22px; width:36px; text-align:center; }
+.cart-item-info { flex:1; }
+.cart-item-info .ci-name { font-size:14px; font-weight:700; color:var(--navy); }
+.cart-item-info .ci-pow  { font-size:12px; color:var(--gray); margin-top:2px; }
+.cart-item-qty { display:flex; align-items:center; border:1.5px solid var(--border);
+                 border-radius:8px; overflow:hidden; }
+.cart-item-qty button { width:30px; height:30px; border:none; background:#f5f5f5;
+                        font-size:16px; cursor:pointer; }
+.cart-item-qty input  { width:34px; text-align:center; border:none; font-size:13px;
+                        font-weight:800; outline:none; padding:4px 0; }
+.cart-item-del { background:none; border:none; color:#ccc; font-size:20px;
+                 cursor:pointer; padding:4px; }
+.cart-item-del:active { color:#c00; }
+
+/* ── FORM FIELDS ── */
+.field { margin-bottom:14px; }
+.field label { font-size:11px; font-weight:800; color:var(--gray);
+               text-transform:uppercase; display:block; margin-bottom:5px; }
+.field input, .field textarea, .field select {
+  width:100%; padding:12px 14px; border:2px solid var(--border); border-radius:10px;
+  font-size:15px; font-family:inherit; outline:none; transition:border-color .2s;
+  background:white;
+}
+.field input:focus, .field textarea:focus { border-color:var(--navy); }
+.field textarea { resize:none; height:80px; }
+.field-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+/* ── BOTTOM CTA ── */
+.bottom-cta {
+  position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+  width:100%; max-width:600px; padding:12px 16px;
+  background:white; border-top:1px solid var(--border);
+  box-shadow:0 -4px 16px rgba(0,0,0,.1); z-index:99;
+  display:flex; gap:10px;
+}
+.btn-cta {
+  flex:1; padding:14px; border:none; border-radius:10px;
+  font-size:15px; font-weight:800; cursor:pointer; transition:all .2s;
+}
+.btn-cta:active { transform:scale(.97); }
+.btn-wa    { background:var(--green); color:white; }
+.btn-email { background:var(--navy);  color:white; }
+.btn-next  { background:var(--navy);  color:white; }
+.btn-back  { background:var(--lgray); color:var(--navy); flex:0 0 auto; width:48px; font-size:20px; }
+
+/* ── SEND PANEL ── */
+.send-summary {
+  background:#f0f4ff; border:2px solid #c0d0ff; border-radius:var(--radius);
+  padding:16px; margin-bottom:20px; font-size:13px; line-height:1.8;
+}
+.send-summary strong { color:var(--navy); }
+.send-btns { display:flex; flex-direction:column; gap:10px; }
+.send-btn {
+  padding:16px; border:none; border-radius:12px; font-size:16px; font-weight:800;
+  cursor:pointer; text-align:center; width:100%; transition:all .2s;
+}
+.send-btn:active { transform:scale(.97); }
+.send-btn-wa    { background:var(--green); color:white; }
+.send-btn-email { background:var(--navy);  color:white; }
+.send-btn-dl    { background:white; color:var(--navy); border:2px solid var(--border); font-size:14px; }
+
+/* ── SUCCESS ── */
+.success-screen { text-align:center; padding:40px 20px; display:none; }
+.success-screen .check { font-size:72px; margin-bottom:16px; }
+.success-screen h2 { color:var(--navy); font-size:22px; margin-bottom:8px; }
+.success-screen p  { color:var(--gray); font-size:14px; line-height:1.6; }
+.btn-nuevo { margin-top:24px; padding:14px 32px; background:var(--navy); color:white;
+             border:none; border-radius:10px; font-size:15px; font-weight:800;
+             cursor:pointer; }
+
+/* ── UTILS ── */
+.hidden { display:none !important; }
+.divider { height:1px; background:var(--border); margin:16px 0; }
+.chip-note { font-size:11px; color:var(--gray); margin-bottom:8px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="app-header">
+    <div class="brand">
+      <h1>SGE</h1>
+      <p>Importadora y Distribuidora de Lentes</p>
+    </div>
+    <div class="cart-icon" onclick="goToStep(2)">
+      <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-9.8-3h11.2c.75 0 1.41-.41 1.75-1.03l3.24-5.88A1 1 0 0 0 22.46 7H5.21L4.27 5H1v2h2l3.6 7.59L5.25 17c-.16.28-.25.61-.25.94C5 19.1 5.9 20 7 20h13v-2H7.42a.25.25 0 0 1-.25-.25l.03-.12.9-1.63z"/></svg>
+      <div class="cart-badge" id="cart-badge">0</div>
+    </div>
+  </div>
+
+  <!-- STEPS BAR -->
+  <div class="steps-bar">
+    <div class="step-tab active" id="tab-1" onclick="goToStep(1)">
+      <span class="step-num">🛒</span>Productos
+    </div>
+    <div class="step-tab" id="tab-2" onclick="goToStep(2)">
+      <span class="step-num">👤</span>Mis datos
+    </div>
+    <div class="step-tab" id="tab-3" onclick="goToStep(3)">
+      <span class="step-num">📤</span>Enviar
+    </div>
+  </div>
+
+  <!-- ── PASO 1: PRODUCTOS ── -->
+  <div class="panel active" id="panel-1">
+
+    <div class="section-label">Selecciona la marca</div>
+    <div class="brand-grid" id="brand-grid"></div>
+
+    <div id="model-section" class="hidden">
+      <div class="section-label">Modelo</div>
+      <div class="chip-note" id="model-note"></div>
+      <div class="model-row" id="model-row"></div>
+    </div>
+
+    <div id="power-section" class="hidden">
+      <div class="section-label">Potencia</div>
+      <div class="chip-note" id="power-note"></div>
+      <div class="power-grid" id="power-grid"></div>
+    </div>
+
+    <div id="addition-section" class="hidden">
+      <div class="section-label">Adición</div>
+      <div class="add-row" id="add-row"></div>
+    </div>
+
+    <div class="add-bar" id="add-bar">
+      <div class="selection-preview" id="sel-preview">—</div>
+      <div class="qty-row">
+        <div class="qty-ctrl">
+          <button onclick="chgQty(-1)">−</button>
+          <input type="number" id="oc-qty" value="1" min="1" max="99">
+          <button onclick="chgQty(1)">＋</button>
+        </div>
+        <button class="btn-add" onclick="addToCart()">＋ Agregar al carrito</button>
+      </div>
+    </div>
+
+    <div id="cart-section" class="hidden">
+      <div class="divider"></div>
+      <div class="section-label">🛒 Mi carrito</div>
+      <div id="cart-list"></div>
+    </div>
+
+  </div>
+
+  <!-- ── PASO 2: DATOS ── -->
+  <div class="panel" id="panel-2">
+    <div class="section-label" style="margin-bottom:16px;">Tus datos de contacto</div>
+
+    <div class="field">
+      <label>Nombre del consultorio / clínica *</label>
+      <input id="d-nombre" placeholder="Dr. González / Clínica Visión" autocomplete="organization">
+    </div>
+    <div class="field">
+      <label>Médico responsable</label>
+      <input id="d-medico" placeholder="Nombre del médico" autocomplete="name">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Teléfono *</label>
+        <input id="d-tel" type="tel" placeholder="809-000-0000" oninput="fmtTel(this)" autocomplete="tel">
+      </div>
+      <div class="field">
+        <label>WhatsApp *</label>
+        <input id="d-wa" type="tel" placeholder="829-000-0000" oninput="fmtTel(this)">
+      </div>
+    </div>
+    <div class="field">
+      <label>Correo electrónico</label>
+      <input id="d-email" type="email" placeholder="correo@ejemplo.com" autocomplete="email">
+    </div>
+    <div class="field">
+      <label>Ciudad</label>
+      <input id="d-ciudad" placeholder="Santiago, SD..." autocomplete="address-level2">
+    </div>
+    <div class="field">
+      <label>Notas / instrucciones especiales</label>
+      <textarea id="d-notas" placeholder="Urgencia, fecha de necesidad, instrucciones del paciente..."></textarea>
+    </div>
+    <div class="field">
+      <label>Código de cliente SGE (si lo tiene)</label>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-weight:800;color:var(--purple);font-size:16px;">CLI-</span>
+        <input id="d-codigo" type="text" maxlength="3" placeholder="001"
+          style="width:80px;" oninput="this.value=this.value.replace(/\D/g,'')">
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PASO 3: ENVIAR ── -->
+  <div class="panel" id="panel-3">
+
+    <div id="send-content">
+      <div class="section-label" style="margin-bottom:12px;">Resumen de tu pedido</div>
+      <div class="send-summary" id="send-summary"></div>
+
+      <div class="section-label" style="margin-bottom:12px;">Enviar a SGE</div>
+      <div class="send-btns">
+        <button class="send-btn send-btn-wa" onclick="enviar('wa')">
+          💬 Enviar por WhatsApp
+        </button>
+        <button class="send-btn send-btn-email" onclick="enviar('email')">
+          📧 Enviar por Correo
+        </button>
+        <button class="send-btn send-btn-dl" onclick="enviar('dl')">
+          📥 Descargar archivo (.json)
+        </button>
+      </div>
+    </div>
+
+    <div class="success-screen" id="success-screen">
+      <div class="check">✅</div>
+      <h2>¡Pedido enviado!</h2>
+      <p>Tu orden fue enviada a SGE.<br>
+         Recibirás confirmación con tu número de seguimiento<br>en breve por WhatsApp.</p>
+      <button class="btn-nuevo" onclick="nuevosPedido()">+ Hacer otro pedido</button>
+    </div>
+
+  </div>
+
+</div><!-- /app -->
+
+<!-- BOTTOM CTA (fijo) -->
+<div class="bottom-cta" id="bottom-cta-1">
+  <button class="btn-cta btn-next" onclick="goToStep(2)" id="btn-next-1">
+    Ver carrito y continuar →
+  </button>
+</div>
+<div class="bottom-cta hidden" id="bottom-cta-2">
+  <button class="btn-cta btn-back" onclick="goToStep(1)">←</button>
+  <button class="btn-cta btn-next" onclick="irAPaso3()">Confirmar y enviar →</button>
+</div>
+<div class="bottom-cta hidden" id="bottom-cta-3">
+  <button class="btn-cta btn-back" onclick="goToStep(2)">←</button>
+</div>
+
+<script>
+// ── CONTACTO SGE ─────────────────────────────────────────────────
+const SGE_WA    = '18098909931';
+const SGE_EMAIL = 'ventas@sge.com.do';
+
+// ── CATÁLOGO ─────────────────────────────────────────────────────
+const BRANDS = {
+  MBI: {
+    icon: '👁️', desc: 'Lentes premium',
+    models: [
+      { code:'SAL',   name:'SAL',   tipo:'Monofocal',       toric:false, pow025:true  },
+      { code:'SAPS',  name:'SAPS',  tipo:'Multifocal',      toric:false, pow025:true  },
+      { code:'SALP',  name:'SALP',  tipo:'Tórico',          toric:false, pow025:true  },
+      { code:'SALPT', name:'SALPT', tipo:'Tórico Premium',  toric:true,  pow025:true  }
+    ]
+  },
+  Asqelio: {
+    icon: '🔬', desc: 'Alta definición',
+    models: [
+      { code:'ASQ-MONO',  name:'ASQ-MONO',  tipo:'Monofocal',      toric:false, pow025:false },
+      { code:'ASQ-MULTI', name:'ASQ-MULTI', tipo:'Multifocal',     toric:false, pow025:false },
+      { code:'ASQ-TOR',   name:'ASQ-TOR',   tipo:'Tórico',         toric:false, pow025:false },
+      { code:'ASQ-TORP',  name:'ASQ-TORP',  tipo:'Tórico Premium', toric:true,  pow025:false }
+    ]
+  },
+  Optech: {
+    icon: '✨', desc: 'Tecnología avanzada',
+    models: [
+      { code:'Prezison',          name:'Prezison',          tipo:'Monofocal',        toric:false, pow025:false },
+      { code:'Preziso GO',        name:'Preziso GO',        tipo:'Monofocal Premium',toric:false, pow025:false },
+      { code:'Prezison Go Toric', name:'Prezison Go Toric', tipo:'Tórico',           toric:true,  pow025:false }
+    ]
+  }
+};
+const POWERS_025 = Array.from({length:57}, (_,i) => (14+i*0.25).toFixed(2));
+const POWERS_050 = Array.from({length:29}, (_,i) => (14+i*0.50).toFixed(2));
+const ADDITIONS  = ['1.00','1.50','2.00','2.50','3.00','3.50','4.00'];
+
+let selBrand = null, selModel = null, selPower = null, selAdd = null;
+let cart = []; // [{brand,model,power,addition,qty}]
+
+// ── BUILD BRAND TILES ─────────────────────────────────────────────
+function buildBrandTiles() {
+  const grid = document.getElementById('brand-grid');
+  Object.entries(BRANDS).forEach(([name, b]) => {
+    const tile = document.createElement('div');
+    tile.className = 'brand-tile';
+    tile.innerHTML = `<div class="logo">${b.icon}</div><div class="name">${name}</div><div class="desc">${b.desc}</div>`;
+    tile.onclick = () => selectBrand(name, tile);
+    grid.appendChild(tile);
+  });
+}
+
+function selectBrand(name, tile) {
+  selBrand = name; selModel = null; selPower = null; selAdd = null;
+  document.querySelectorAll('.brand-tile').forEach(t => t.classList.remove('active'));
+  tile.classList.add('active');
+  buildModels();
+  hide('power-section'); hide('addition-section'); hide('add-bar');
+}
+
+function buildModels() {
+  const b = BRANDS[selBrand];
+  const row = document.getElementById('model-row');
+  document.getElementById('model-note').textContent = `Línea ${selBrand}`;
+  row.innerHTML = '';
+  b.models.forEach(m => {
+    const chip = document.createElement('button');
+    chip.className = 'model-chip';
+    chip.innerHTML = `${m.name} <small style="font-weight:normal;display:block;font-size:10px;color:#aaa">${m.tipo}</small>`;
+    chip.onclick = () => { selModel = m; selectModel(m, chip); };
+    row.appendChild(chip);
+  });
+  show('model-section');
+}
+
+function selectModel(m, chip) {
+  selPower = null; selAdd = null;
+  document.querySelectorAll('.model-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  buildPowers(m);
+  hide('addition-section'); hide('add-bar');
+}
+
+function buildPowers(m) {
+  const grid = document.getElementById('power-grid');
+  const powers = m.pow025 ? POWERS_025 : POWERS_050;
+  document.getElementById('power-note').textContent = `Incrementos de ${m.pow025?'0.25':'0.50'}D`;
+  grid.innerHTML = '';
+  powers.forEach(pow => {
+    const b = document.createElement('button');
+    b.className = 'pow-btn';
+    b.textContent = pow + 'D';
+    b.onclick = () => { selPower = pow; selectPower(b); };
+    grid.appendChild(b);
+  });
+  show('power-section');
+}
+
+function selectPower(btn) {
+  selAdd = null;
+  document.querySelectorAll('.pow-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (selModel.toric) { buildAdditions(); hide('add-bar'); }
+  else { hide('addition-section'); showAddBar(); }
+}
+
+function buildAdditions() {
+  const row = document.getElementById('add-row');
+  row.innerHTML = '';
+  ADDITIONS.forEach(add => {
+    const chip = document.createElement('button');
+    chip.className = 'add-chip';
+    chip.textContent = '+' + add + 'D';
+    chip.onclick = () => { selAdd = add; selectAdd(chip); };
+    row.appendChild(chip);
+  });
+  show('addition-section');
+}
+
+function selectAdd(chip) {
+  document.querySelectorAll('.add-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  showAddBar();
+}
+
+function showAddBar() {
+  const bar = document.getElementById('add-bar');
+  const preview = document.getElementById('sel-preview');
+  preview.textContent = `${selBrand} ${selModel.name}  •  ${selPower}D${selAdd?' / +'+selAdd+'D':''}`;
+  bar.style.display = 'block';
+}
+
+// ── CARRITO ───────────────────────────────────────────────────────
+function chgQty(d) {
+  const inp = document.getElementById('oc-qty');
+  inp.value = Math.max(1, (parseInt(inp.value)||1)+d);
+}
+
+function addToCart() {
+  if (!selBrand||!selModel||!selPower) return;
+  if (selModel.toric && !selAdd) { alert('Selecciona la adición.'); return; }
+  const qty = parseInt(document.getElementById('oc-qty').value)||1;
+  const key = `${selBrand}|${selModel.code}|${selPower}|${selAdd||''}`;
+  const ex  = cart.find(i=>i._key===key);
+  if (ex) ex.qty+=qty;
+  else cart.push({_key:key, brand:selBrand, model:selModel.code,
+                  power:selPower, addition:selAdd||null, qty});
+  document.getElementById('oc-qty').value = 1;
+  renderCart();
+  // Flash
+  const btn = document.querySelector('.btn-add');
+  const orig = btn.textContent;
+  btn.textContent='✅ Agregado!'; btn.style.background='#375623';
+  setTimeout(()=>{btn.textContent=orig; btn.style.background='var(--orange)';}, 900);
+}
+
+function renderCart() {
+  const list  = document.getElementById('cart-list');
+  const badge = document.getElementById('cart-badge');
+  const total = cart.reduce((a,i)=>a+i.qty,0);
+
+  badge.textContent = cart.length;
+  badge.style.display = cart.length > 0 ? 'flex' : 'none';
+
+  if (cart.length === 0) {
+    list.innerHTML = '';
+    hide('cart-section');
+    return;
+  }
+  show('cart-section');
+  list.innerHTML = cart.map((it,idx)=>`
+    <div class="cart-item">
+      <div class="cart-item-icon">👁️</div>
+      <div class="cart-item-info">
+        <div class="ci-name">${it.brand} ${it.model}</div>
+        <div class="ci-pow">${it.power}D${it.addition?' · +'+it.addition+'D':''}</div>
+      </div>
+      <div class="cart-item-qty">
+        <button onclick="chgCartQty(${idx},-1)">−</button>
+        <input type="number" value="${it.qty}" min="1"
+          onchange="cart[${idx}].qty=Math.max(1,parseInt(this.value)||1);renderCart()">
+        <button onclick="chgCartQty(${idx},1)">＋</button>
+      </div>
+      <button class="cart-item-del" onclick="removeFromCart(${idx})">✕</button>
+    </div>`).join('');
+}
+
+function chgCartQty(idx,d) { cart[idx].qty=Math.max(1,cart[idx].qty+d); renderCart(); }
+function removeFromCart(idx) { cart.splice(idx,1); renderCart(); }
+
+// ── NAVEGACIÓN ────────────────────────────────────────────────────
+function goToStep(n) {
+  if (n===2 && cart.length===0) { alert('Agrega al menos un producto al carrito.'); return; }
+  [1,2,3].forEach(i => {
+    document.getElementById(`panel-${i}`).classList.toggle('active', i===n);
+    document.getElementById(`tab-${i}`).classList.toggle('active', i===n);
+    const cta = document.getElementById(`bottom-cta-${i}`);
+    if (cta) cta.classList.toggle('hidden', i!==n);
+  });
+  if (n===3) buildSendSummary();
+  window.scrollTo(0,0);
+}
+
+function irAPaso3() {
+  if (!document.getElementById('d-nombre').value.trim() &&
+      !document.getElementById('d-tel').value.trim()) {
+    alert('Por favor ingresa al menos el nombre y teléfono de contacto.');
+    return;
+  }
+  goToStep(3);
+}
+
+// ── RESUMEN Y ENVÍO ───────────────────────────────────────────────
+function buildSendSummary() {
+  const nombre = document.getElementById('d-nombre').value || '—';
+  const tel    = document.getElementById('d-tel').value    || '—';
+  const total  = cart.reduce((a,i)=>a+i.qty,0);
+  const lineas = cart.map(i=>`• ${i.brand} ${i.model} ${i.power}D${i.addition?' +'+i.addition+'D':''} × ${i.qty}`).join('<br>');
+  document.getElementById('send-summary').innerHTML =
+    `<strong>Cliente:</strong> ${nombre}<br>
+     <strong>Teléfono:</strong> ${tel}<br>
+     <strong>Unidades totales:</strong> ${total}<br><br>
+     ${lineas}`;
+}
+
+function buildOrden() {
+  return {
+    tipo:     'SGE_ORDEN',
+    numOrden: `OC-${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2,'0')}-${String(Date.now()).slice(-4)}`,
+    fecha:    new Date().toISOString().slice(0,10),
+    cliente: {
+      codigo: document.getElementById('d-codigo').value ? 'CLI-'+document.getElementById('d-codigo').value.padStart(3,'0') : '',
+      nombre: document.getElementById('d-nombre').value,
+      medico: document.getElementById('d-medico').value,
+      tel:    document.getElementById('d-tel').value,
+      wa:     document.getElementById('d-wa').value,
+      email:  document.getElementById('d-email').value,
+      ciudad: document.getElementById('d-ciudad').value
+    },
+    items:         cart.map(({_key,...i})=>i),
+    especiales:    [],
+    notas:         document.getElementById('d-notas').value,
+    totalUnidades: cart.reduce((s,i)=>s+i.qty,0)
+  };
+}
+
+function textoOrden(orden) {
+  const c = orden.cliente;
+  const lineas = orden.items.map(i=>`• ${i.brand} ${i.model} ${i.power}D${i.addition?' ADD+'+i.addition:''}  x${i.qty}`).join('\n');
+  return `📋 *ORDEN DE COMPRA SGE*
+No: ${orden.numOrden}
+Fecha: ${orden.fecha}
+${c.codigo?'Código: '+c.codigo+'\n':''}Cliente: ${c.nombre||'–'}
+Médico: ${c.medico||'–'}
+Tel/WA: ${c.tel||c.wa||'–'}
+
+${lineas}
+
+Total unidades: ${orden.totalUnidades}${orden.notas?'\nNotas: '+orden.notas:''}`;
+}
+
+function enviar(modo) {
+  if (cart.length===0) return;
+  const orden = buildOrden();
+  const texto = textoOrden(orden);
+
+  // Siempre descarga el JSON para compatibilidad con SGE
+  const blob = new Blob([JSON.stringify(orden,null,2)],{type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const fn   = `SGE-Orden-${(orden.cliente.nombre||'cliente').replace(/[^a-zA-Z0-9]/g,'-')}-${orden.fecha}.json`;
+  a.href=url; a.download=fn; a.click();
+  URL.revokeObjectURL(url);
+
+  if (modo==='wa') {
+    window.open(`https://wa.me/${SGE_WA}?text=${encodeURIComponent(texto)}`, '_blank');
+    mostrarExito();
+  } else if (modo==='email') {
+    const asunto = encodeURIComponent(`Orden de Compra – ${orden.cliente.nombre||''}`);
+    window.location.href = `mailto:${SGE_EMAIL}?subject=${asunto}&body=${encodeURIComponent(texto)}`;
+    mostrarExito();
+  }
+  // dl: solo descarga
+}
+
+function mostrarExito() {
+  document.getElementById('send-content').style.display='none';
+  document.getElementById('success-screen').style.display='block';
+  document.getElementById('bottom-cta-3').classList.add('hidden');
+}
+
+function nuevosPedido() {
+  cart=[]; selBrand=null; selModel=null; selPower=null; selAdd=null;
+  document.querySelectorAll('input,textarea').forEach(el=>el.value='');
+  document.getElementById('send-content').style.display='block';
+  document.getElementById('success-screen').style.display='none';
+  renderCart();
+  goToStep(1);
+  document.querySelectorAll('.brand-tile,.model-chip,.pow-btn,.add-chip').forEach(el=>el.classList.remove('active'));
+  hide('model-section'); hide('power-section'); hide('addition-section');
+  hide('add-bar'); hide('cart-section');
+}
+
+// ── FORMATO TEL ───────────────────────────────────────────────────
+function fmtTel(el) {
+  const d=el.value.replace(/\D/g,'').slice(0,10);
+  if(d.length<=3) el.value=d;
+  else if(d.length<=6) el.value=d.slice(0,3)+'-'+d.slice(3);
+  else el.value=d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+// ── INIT ─────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  buildBrandTiles();
+  renderCart();
+});
+</script>
+</body>
+</html>
