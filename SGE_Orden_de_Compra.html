@@ -269,8 +269,8 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
     <div class="section-label" style="margin-bottom:16px;">Tus datos de contacto</div>
 
     <div class="field">
-      <label>Nombre del consultorio / clínica *</label>
-      <input id="d-nombre" placeholder="Dr. González / Clínica Visión" autocomplete="organization">
+      <label>Nombre del consultorio / clínica <span style="color:#e05;">*</span></label>
+      <input id="d-nombre" placeholder="Dr. González / Clínica Visión" autocomplete="organization" oninput="clearFieldError(this)">
     </div>
     <div class="field">
       <label>Médico responsable</label>
@@ -278,12 +278,12 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Teléfono *</label>
-        <input id="d-tel" type="tel" placeholder="809-000-0000" oninput="fmtTel(this)" autocomplete="tel">
+        <label>Teléfono <span style="color:#e05;">*</span></label>
+        <input id="d-tel" type="tel" placeholder="809-000-0000" oninput="fmtTel(this);clearFieldError(this)" autocomplete="tel">
       </div>
       <div class="field">
-        <label>WhatsApp *</label>
-        <input id="d-wa" type="tel" placeholder="829-000-0000" oninput="fmtTel(this)">
+        <label>WhatsApp <span style="color:#e05;">*</span></label>
+        <input id="d-wa" type="tel" placeholder="829-000-0000" oninput="fmtTel(this);clearFieldError(this)">
       </div>
     </div>
     <div class="field">
@@ -596,10 +596,31 @@ function goToStep(n) {
   window.scrollTo(0,0);
 }
 
+function clearFieldError(el) {
+  el.style.borderColor = '';
+  el.style.boxShadow  = '';
+}
+
+function markError(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = '#e05050';
+  el.style.boxShadow   = '0 0 0 3px rgba(220,50,50,.18)';
+  el.focus();
+}
+
 function irAPaso3() {
-  if (!document.getElementById('d-nombre').value.trim() &&
-      !document.getElementById('d-tel').value.trim()) {
-    alert('Por favor ingresa al menos el nombre y teléfono de contacto.');
+  const nombre = document.getElementById('d-nombre').value.trim();
+  const tel    = document.getElementById('d-tel').value.trim();
+  const wa     = document.getElementById('d-wa').value.trim();
+
+  let errores = [];
+  if (!nombre) { markError('d-nombre'); errores.push('Nombre del consultorio'); }
+  if (!tel)    { markError('d-tel');    errores.push('Teléfono'); }
+  if (!wa)     { markError('d-wa');     errores.push('WhatsApp'); }
+
+  if (errores.length) {
+    alert('⚠️ Completa los campos obligatorios:\n\n• ' + errores.join('\n• '));
     return;
   }
   goToStep(3);
